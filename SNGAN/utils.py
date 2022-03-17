@@ -33,10 +33,14 @@ def set_log_dir(root_dir, exp_name):
 
     # set log path
     exp_path = os.path.join(root_dir, exp_name)
-    now = datetime.now(dateutil.tz.tzlocal())
-    timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
-    prefix = exp_path + '_' + timestamp
-    os.makedirs(prefix)
+    if 'PREEMPT' in os.environ:
+        print('preempt, ', os.environ['PREEMPT'])
+        prefix = exp_path
+    else:
+        now = datetime.now(dateutil.tz.tzlocal())
+        timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
+        prefix = exp_path + '_' + timestamp
+    os.makedirs(prefix, exist_ok=True)
     path_dict['prefix'] = prefix
 
     # set checkpoint path
@@ -58,6 +62,6 @@ def set_log_dir(root_dir, exp_name):
 
 def save_checkpoint(states, is_best, output_dir, epoch,
                     filename='checkpoint.pth'):
-    # torch.save(states, os.path.join(output_dir, filename))
-    # if is_best:
-    torch.save(states, os.path.join(output_dir, '_{0}_checkpoint_best.pth'.format(epoch)))
+    torch.save(states, os.path.join(output_dir, filename))
+    if is_best:
+        torch.save(states, os.path.join(output_dir, '_{0}_checkpoint_best.pth'.format(epoch)))

@@ -7,8 +7,11 @@ import os
 import numpy as np
 import torch.nn as nn
 from tensorboardX import SummaryWriter
-import datasets
+from SNGAN import datasets
 from tqdm import tqdm
+from functools import partialmethod
+if 'PREEMPT' in os.environ:
+    tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
 from copy import deepcopy
 from SNGAN.sngan_cifar10 import Generator, Discriminator
 from SNGAN.train import *
@@ -16,7 +19,6 @@ import logging
 import SNGAN.config as config
 from SNGAN.utils import set_log_dir, create_logger, save_checkpoint
 import random
-from torch.optim import _functional as F
 import math
 from torch import Tensor
 from typing import List, Optional
@@ -127,7 +129,7 @@ class AdamPPM(torch.optim.Adam):
                     # record the step after step update
                     state_steps.append(state['step'])
 
-            F.adam_no_update(params_with_grad,
+            adam_no_update(params_with_grad,
                              grads,
                              exp_avgs,
                              exp_avg_sqs,
@@ -335,6 +337,22 @@ def main(args, load=False):
             logger.info('=> FID score: {0}, best FID score: {1}'.format(fid, best_fid))
         else:
             is_best = False
+
+        # for preempt
+        avg_gen_net = deepcopy(G)
+        load_params(avg_gen_net, gen_avg_param)
+
+        save_checkpoint({
+            'epoch': epoch + 1,
+            'model': args.model,
+            'gen_state_dict': G.state_dict(),
+            'dis_state_dict': D.state_dict(),
+            'avg_gen_state_dict': avg_gen_net.state_dict(),
+            'gen_optimizer': G_optimizer.state_dict(),
+            'dis_optimizer': D_optimizer.state_dict(),
+            'best_fid': best_is,
+            'path_helper': args.path_helper
+        }, False, args.path_helper['ckpt_path'], epoch=epoch)
 
         # if epoch >= 350 and is_best:
         if epoch >= 350:
