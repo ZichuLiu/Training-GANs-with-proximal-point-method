@@ -45,16 +45,16 @@ def set_log_dir(root_dir, exp_name):
 
     # set checkpoint path
     ckpt_path = os.path.join(prefix, 'Model')
-    os.makedirs(ckpt_path)
+    os.makedirs(ckpt_path, exist_ok=True)
     path_dict['ckpt_path'] = ckpt_path
 
     log_path = os.path.join(prefix, 'Log')
-    os.makedirs(log_path)
+    os.makedirs(log_path, exist_ok=True)
     path_dict['log_path'] = log_path
 
     # set sample image path for fid calculation
     sample_path = os.path.join(prefix, 'Samples')
-    os.makedirs(sample_path)
+    os.makedirs(sample_path, exist_ok=True)
     path_dict['sample_path'] = sample_path
 
     return path_dict
