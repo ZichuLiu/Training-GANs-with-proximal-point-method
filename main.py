@@ -177,7 +177,7 @@ def copy_params(model):
     return flatten
 
 
-def main(args, load=False):
+def main(args, valid_only=False):
     G = Generator(args).cuda()
     D = Discriminator(args).cuda()
     G_optimizer = AdamPPM(G.parameters(), args.lr_g, (args.beta1, args.beta2))
@@ -218,45 +218,48 @@ def main(args, load=False):
     dataset = datasets.ImageDataset(args)
     train_loader = dataset.train
 
-    # set writer
-    # if args.load_path:
-    #     print(f'=> resuming from {args.load_path}')
-    #     assert os.path.exists(args.load_path)
-    #     checkpoint_file = os.path.join(args.load_path, 'Model', 'checkpoint.pth')
-    #     assert os.path.exists(checkpoint_file)
-    #     checkpoint = torch.load(checkpoint_file)
-    #     start_epoch = checkpoint['epoch']
-    #     best_fid = checkpoint['best_fid']
-    #     G.load_state_dict(checkpoint['gen_state_dict'])
-    #     D.load_state_dict(checkpoint['dis_state_dict'])
-    #     G_optimizer.load_state_dict(checkpoint['gen_optimizer'])
-    #     D_optimizer.load_state_dict(checkpoint['dis_optimizer'])
-    #     avg_gen_net = deepcopy(G)
-    #     avg_gen_net.load_state_dict(checkpoint['avg_gen_state_dict'])
-    #     gen_avg_param = copy_params(avg_gen_net)
-    #     del avg_gen_net
-    #
-    #     args.path_helper = checkpoint['path_helper']
-    #     logger = create_logger(args.path_helper['log_path'])
-    #     logger.info(f'=> loaded checkpoint {checkpoint_file} (epoch {start_epoch})')
-    # else:
-    #     # create new log dir
-    #     assert args.exp_name
-    #     args.path_helper = set_log_dir('logs', args.exp_name)
-    #     logger = create_logger(args.path_helper['log_path'])
-    assert args.exp_name
-    args.path_helper = set_log_dir('logs', args.exp_name)
-    logger = create_logger(args.path_helper['log_path'])
+    lr_schedulers = (gen_scheduler, dis_scheduler) if args.lr_decay else None
+    inception_score = 0
+    best_ind = 0
+
+    if args.load_path:
+        print(f'=> resuming from {args.load_path}')
+
+        checkpoint_file = os.path.join('logs', args.load_path, 'Model', 'checkpoint.pth')
+        if os.path.exists(checkpoint_file):
+            checkpoint = torch.load(checkpoint_file)
+            start_epoch = checkpoint['epoch']
+            best_is = checkpoint['best_fid']
+            G.load_state_dict(checkpoint['gen_state_dict'])
+            D.load_state_dict(checkpoint['dis_state_dict'])
+            G_optimizer.load_state_dict(checkpoint['gen_optimizer'])
+            D_optimizer.load_state_dict(checkpoint['dis_optimizer'])
+            avg_gen_net = deepcopy(G)
+            avg_gen_net.load_state_dict(checkpoint['avg_gen_state_dict'])
+            gen_avg_param = copy_params(avg_gen_net)
+            del avg_gen_net
+
+            args.path_helper = checkpoint['path_helper']
+            print("path helper", args.path_helper)
+            logger = create_logger(args.path_helper['log_path'])
+            logger.info(f'=> loaded checkpoint {checkpoint_file} (epoch {start_epoch})')
+        else:
+            print(f"=>Can't find {checkpoint_file}")
+            args.path_helper = set_log_dir('logs', args.exp_name)
+            logger = create_logger(args.path_helper['log_path'])
+    else:
+        # create new log dir
+        assert args.exp_name
+        args.path_helper = set_log_dir('logs', args.exp_name)
+        logger = create_logger(args.path_helper['log_path'])
 
     writer_dict = {
         'writer': SummaryWriter(args.path_helper['log_path']),
         'train_global_steps': start_epoch * len(train_loader),
         'valid_global_steps': start_epoch // args.val_freq,
     }
-    lr_schedulers = (gen_scheduler, dis_scheduler) if args.lr_decay else None
-    inception_score = 0
-    best_ind = 0
-    if load:
+
+    if valid_only:
         for epoch in range(380, 500):
 
             print(f'=> resuming from {args.load_path}')
@@ -314,6 +317,7 @@ def main(args, load=False):
         if epoch > 350 and epoch % args.val_freq == 0 or epoch == int(args.max_epoch) - 1:
             backup_param = copy_params(G)
             load_params(G, gen_avg_param)
+            avg_gen_net = deepcopy(G)
             # inception_score = validate(args, fixed_z, 0, G, writer_dict)
             fid = get_fid(args, 'SNGAN/fid_stats_cifar10_train.npz', epoch, G, args.num_eval_imgs, args.gen_batch_size,
                           args.eval_batch_size, writer_dict=writer_dict, cls_idx=None)
@@ -321,22 +325,23 @@ def main(args, load=False):
             # print('inception score: {0}'.format(inception_score))
             logger.info(f'Inception score: {inception_score}, FID score: {fid} || @ epoch {epoch}.')
             load_params(G, backup_param)
-            #     if inception_score > best_is:
-            #         best_is = inception_score
-            #         is_best = True
-            #     else:
-            #         is_best = False
-            #     logger.info('=> inception score: {0}, best inception score: {1}'.format(inception_score, best_is))
-            # else:
-            #     is_best = False
+
             if fid < best_fid:
                 best_fid = fid
-                is_best = True
-            else:
-                is_best = False
+                save_checkpoint({
+                    'epoch': epoch + 1,
+                    'model': args.model,
+                    'gen_state_dict': G.state_dict(),
+                    'dis_state_dict': D.state_dict(),
+                    'avg_gen_state_dict': avg_gen_net.state_dict(),
+                    'gen_optimizer': G_optimizer.state_dict(),
+                    'dis_optimizer': D_optimizer.state_dict(),
+                    'best_fid': best_is,
+                    'path_helper': args.path_helper
+                }, True, args.path_helper['ckpt_path'], epoch=epoch)
+
             logger.info('=> FID score: {0}, best FID score: {1}'.format(fid, best_fid))
-        else:
-            is_best = False
+
 
         # for preempt
         avg_gen_net = deepcopy(G)
@@ -354,22 +359,7 @@ def main(args, load=False):
             'path_helper': args.path_helper
         }, False, args.path_helper['ckpt_path'], epoch=epoch)
 
-        # if epoch >= 350 and is_best:
-        if epoch >= 350:
-            avg_gen_net = deepcopy(G)
-            load_params(avg_gen_net, gen_avg_param)
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'model': args.model,
-                'gen_state_dict': G.state_dict(),
-                'dis_state_dict': D.state_dict(),
-                'avg_gen_state_dict': avg_gen_net.state_dict(),
-                'gen_optimizer': G_optimizer.state_dict(),
-                'dis_optimizer': D_optimizer.state_dict(),
-                'best_fid': best_is,
-                'path_helper': args.path_helper
-            }, is_best, args.path_helper['ckpt_path'], epoch=epoch)
-            del avg_gen_net
+
 
 
 # Press the green button in the gutter to run the script.
@@ -379,4 +369,4 @@ if __name__ == '__main__':
     np.random.seed(args.random_seed)
     torch.manual_seed(args.random_seed)
     torch.cuda.manual_seed_all(args.random_seed)
-    main(args, load=False)
+    main(args, valid_only=False)
