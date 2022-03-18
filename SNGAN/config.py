@@ -31,13 +31,13 @@ def parse_args():
         '-gen_bs',
         '--gen_batch_size',
         type=int,
-        default=256,
+        default=128,
         help='size of the batches')
     parser.add_argument(
         '-dis_bs',
         '--dis_batch_size',
         type=int,
-        default=256,
+        default=128,
         help='size of the batches')
     parser.add_argument(
         '--lr_g',

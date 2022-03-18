@@ -14,6 +14,8 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+
+
 def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optimizer, gen_avg_param, train_loader,
           epoch,
           writer_dict, schedulers=None):
@@ -216,21 +218,28 @@ def train_ppm(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_o
             gen_scheduler, dis_scheduler = schedulers
             g_lr = gen_scheduler.step(global_steps)
             d_lr = dis_scheduler.step(global_steps)
-            writer.add_scalar('LR/g_lr', g_lr, global_steps)
-            writer.add_scalar('LR/d_lr', d_lr, global_steps)
+            if global_steps % 20 == 0:
+                writer.add_scalar('LR/g_lr', g_lr, global_steps)
+                writer.add_scalar('LR/d_lr', d_lr, global_steps)
 
         # moving average weight
         for p, avg_p in zip(gen_net.parameters(), gen_avg_param):
             avg_p.mul_(args.ema).add_((1-args.ema), p.data)
 
-        writer.add_scalar('g_loss', g_loss.item(), global_steps)
+        if global_steps % 20 == 0:
+            writer.add_scalar('g_loss', g_loss.item(), global_steps)
         gen_step += 1
 
         # verbose
         if gen_step and iter_idx % args.print_freq == 0:
-            tqdm.write(
-                "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" %
-                (epoch, args.max_epoch, iter_idx % len(train_loader), len(train_loader), d_loss.item(), g_loss.item()))
+            if 'PREEMPT' in os.environ:
+                print("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" %
+                      (
+                      epoch, args.max_epoch, iter_idx % len(train_loader), len(train_loader), d_loss.item(), g_loss.item()))
+            else:
+                tqdm.write(
+                    "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" %
+                    (epoch, args.max_epoch, iter_idx % len(train_loader), len(train_loader), d_loss.item(), g_loss.item()))
 
         writer_dict['train_global_steps'] = global_steps + 1
 

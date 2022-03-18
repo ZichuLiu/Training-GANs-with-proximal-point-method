@@ -33,24 +33,28 @@ def set_log_dir(root_dir, exp_name):
 
     # set log path
     exp_path = os.path.join(root_dir, exp_name)
-    now = datetime.now(dateutil.tz.tzlocal())
-    timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
-    prefix = exp_path + '_' + timestamp
-    os.makedirs(prefix)
+    if 'PREEMPT' in os.environ:
+        print('preempt, ', os.environ['PREEMPT'])
+        prefix = exp_path
+    else:
+        now = datetime.now(dateutil.tz.tzlocal())
+        timestamp = now.strftime('%Y_%m_%d_%H_%M_%S')
+        prefix = exp_path + '_' + timestamp
+    os.makedirs(prefix, exist_ok=True)
     path_dict['prefix'] = prefix
 
     # set checkpoint path
     ckpt_path = os.path.join(prefix, 'Model')
-    os.makedirs(ckpt_path)
+    os.makedirs(ckpt_path, exist_ok=True)
     path_dict['ckpt_path'] = ckpt_path
 
     log_path = os.path.join(prefix, 'Log')
-    os.makedirs(log_path)
+    os.makedirs(log_path, exist_ok=True)
     path_dict['log_path'] = log_path
 
     # set sample image path for fid calculation
     sample_path = os.path.join(prefix, 'Samples')
-    os.makedirs(sample_path)
+    os.makedirs(sample_path, exist_ok=True)
     path_dict['sample_path'] = sample_path
 
     return path_dict
@@ -58,6 +62,6 @@ def set_log_dir(root_dir, exp_name):
 
 def save_checkpoint(states, is_best, output_dir, epoch,
                     filename='checkpoint.pth'):
-    # torch.save(states, os.path.join(output_dir, filename))
-    # if is_best:
-    torch.save(states, os.path.join(output_dir, '_{0}_checkpoint_best.pth'.format(epoch)))
+    torch.save(states, os.path.join(output_dir, filename))
+    if is_best:
+        torch.save(states, os.path.join(output_dir, '_{0}_checkpoint_best.pth'.format(epoch)))
