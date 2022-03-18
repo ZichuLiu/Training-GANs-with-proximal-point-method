@@ -221,7 +221,7 @@ def train_ppm(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_o
 
         # moving average weight
         for p, avg_p in zip(gen_net.parameters(), gen_avg_param):
-            avg_p.mul_(0.999).add_(0.001, p.data)
+            avg_p.mul_(args.ema).add_((1-args.ema), p.data)
 
         writer.add_scalar('g_loss', g_loss.item(), global_steps)
         gen_step += 1

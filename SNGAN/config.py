@@ -31,23 +31,23 @@ def parse_args():
         '-gen_bs',
         '--gen_batch_size',
         type=int,
-        default=128,
+        default=256,
         help='size of the batches')
     parser.add_argument(
         '-dis_bs',
         '--dis_batch_size',
         type=int,
-        default=128,
+        default=256,
         help='size of the batches')
     parser.add_argument(
         '--lr_g',
         type=float,
-        default=0.00004,
+        default=0.00002,
         help='adam: gen learning rate')
     parser.add_argument(
         '--lr_d',
         type=float,
-        default=0.0002,
+        default=0.0001,
         help='adam: disc learning rate')
     parser.add_argument(
         '--lr_decay',
@@ -56,13 +56,18 @@ def parse_args():
     parser.add_argument(
         '--beta1',
         type=float,
-        default=0.0,
+        default= -0.1,
         help='adam: decay of first order momentum of gradient')
     parser.add_argument(
         '--beta2',
         type=float,
-        default=0.9,
+        default=0.90,
         help='adam: decay of second order momentum of gradient')
+    parser.add_argument(
+        '--ema',
+        type=float,
+        default=0.8,
+        help='exponential moving average weights')
     parser.add_argument(
         '--num_workers',
         type=int,
@@ -101,7 +106,7 @@ def parse_args():
     parser.add_argument(
         '--n_critic',
         type=int,
-        default=5,
+        default=1,
         help='number of training steps for discriminator per iter')
     parser.add_argument(
         '--val_freq',
@@ -115,7 +120,7 @@ def parse_args():
         help='interval between each verbose')
     parser.add_argument(
         '--load_path',
-        default='/home/zichu/PycharmProjects/best_gan/logs/cifar10_adam_2022_03_09_00_07_43/Model/',
+        default='/home/zichu/PycharmProjects/best_gan/logs/cifar10_adam_2022_03_17_18_53_37/Model/',
         type=str,
         help='The reload model path')
     parser.add_argument(
@@ -167,7 +172,7 @@ def parse_args():
         type=int,
         default=4,
         help="the base resolution of the GAN")
-    parser.add_argument('--random_seed', type=int, default=1234321)
+    parser.add_argument('--random_seed', type=int, default=666666)
 
     opt = parser.parse_args()
     return opt

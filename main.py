@@ -73,8 +73,23 @@ def adam_no_update(params: List[Tensor],
 class AdamPPM(torch.optim.Adam):
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8,
                  weight_decay=0, amsgrad=False):
-        torch.optim.Adam.__init__(self, params, lr=lr, betas=betas, eps=eps,
-                                  weight_decay=weight_decay, amsgrad=amsgrad)
+        if not 0.0 <= lr:
+            raise ValueError("Invalid learning rate: {}".format(lr))
+        if not 0.0 <= eps:
+            raise ValueError("Invalid epsilon value: {}".format(eps))
+        # if not 0.0 <= betas[0] < 1.0:
+        #     raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
+        # if not 0.0 <= betas[1] < 1.0:
+        #     raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
+        if not 0.0 <= weight_decay:
+            raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
+        defaults = dict(lr=lr, betas=betas, eps=eps,
+                        weight_decay=weight_decay, amsgrad=amsgrad)
+        super(torch.optim.Adam, self).__init__(params, defaults)
+    # def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8,
+    #              weight_decay=0, amsgrad=False):
+    #     torch.optim.Adam.__init__(self, params, lr=lr, betas=betas, eps=eps,
+    #                               weight_decay=weight_decay, amsgrad=amsgrad)
 
     def step_no_update(self, closure=None):
         """Performs a single optimization step without updating the exponential moving average.
@@ -255,7 +270,7 @@ def main(args, load=False):
     inception_score = 0
     best_ind = 0
     if load:
-        for epoch in range(380, 500):
+        for epoch in range(2, 3):
 
             print(f'=> resuming from {args.load_path}')
             checkpoint_file = os.path.join(args.load_path, '_' + str(epoch) + '_checkpoint_best.pth')
@@ -309,7 +324,7 @@ def main(args, load=False):
                   lr_schedulers)
 
         # if epoch % args.val_freq == 0 or epoch == int(args.max_epoch) - 1:
-        if epoch > 350 and epoch % args.val_freq == 0 or epoch == int(args.max_epoch) - 1:
+        if epoch+1 and epoch % args.val_freq == 0 or epoch == int(args.max_epoch) - 1:
             backup_param = copy_params(G)
             load_params(G, gen_avg_param)
             # inception_score = validate(args, fixed_z, 0, G, writer_dict)
@@ -337,7 +352,7 @@ def main(args, load=False):
             is_best = False
 
         # if epoch >= 350 and is_best:
-        if epoch >= 350:
+        if epoch >= 0:
             avg_gen_net = deepcopy(G)
             load_params(avg_gen_net, gen_avg_param)
             save_checkpoint({
@@ -361,4 +376,4 @@ if __name__ == '__main__':
     np.random.seed(args.random_seed)
     torch.manual_seed(args.random_seed)
     torch.cuda.manual_seed_all(args.random_seed)
-    main(args, load=False)
+    main(args, load=True)

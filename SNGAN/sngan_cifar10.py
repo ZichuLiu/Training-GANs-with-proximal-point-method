@@ -109,7 +109,7 @@ class DisBlock(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, args, activation=nn.Softplus(10)):
+    def __init__(self, args, activation=nn.ReLU()):
         super(Discriminator, self).__init__()
         self.ch = args.df_dim
         self.activation = activation
