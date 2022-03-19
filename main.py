@@ -328,7 +328,7 @@ def main(args, valid_only=False):
                   lr_schedulers)
 
         # if epoch % args.val_freq == 0 or epoch == int(args.max_epoch) - 1:
-        if epoch+1 and epoch % args.val_freq == 0 or epoch == int(args.max_epoch) - 1:
+        if epoch > 350 or epoch % args.val_freq == 0:
             backup_param = copy_params(G)
             load_params(G, gen_avg_param)
             avg_gen_net = deepcopy(G)
