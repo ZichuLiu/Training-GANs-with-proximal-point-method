@@ -30,8 +30,9 @@ for k in {0..3}
       beta1='0.0'
       beta2=${BETA2[$k]}
       num_step='5'
-      expname=cifar_ppm_Adam_beta1"$beta1"_beta2"$beta2"_num_step_"$num_step"
-      python -u main.py  --exp_name $expname --beta1 $beta1 --beta2 $beta2 --alg ppm --load_path $expname --num_workers 0 --extra_steps $num_step --max_epoch 700 --ema 0.999
+      ema='0.999'
+      expname=cifar_ppm_Adam_beta1"$beta1"_beta2"$beta2"_num_step_"$num_step"_ema_"$ema"
+      python -u main.py  --exp_name $expname --beta1 $beta1 --beta2 $beta2 --alg ppm --load_path $expname --num_workers 0 --extra_steps $num_step --max_epoch 700 --ema $ema
     fi
 
   done

@@ -33,7 +33,7 @@ do
             beta2='0.9'
             num_step='5'
             ema=${EMA[$j]}
-            expname=cifar_ppm_Adam_beta1"$beta1"_beta2"$beta2"_num_step_"$num_step"
+            expname=cifar_ppm_Adam_beta1"$beta1"_beta2"$beta2"_num_step_"$num_step"_ema_"$ema"
             python -u main.py  --exp_name $expname --beta1 $beta1 --beta2 $beta2 --alg ppm --load_path $expname --num_workers 0 --val_freq 1 --extra_steps $num_step --max_epoch 700 --ema $ema
           fi
 
