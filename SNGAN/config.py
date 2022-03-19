@@ -111,7 +111,7 @@ def parse_args():
     parser.add_argument(
         '--val_freq',
         type=int,
-        default=1,
+        default=10,
         help='interval between each validation')
     parser.add_argument(
         '--print_freq',
