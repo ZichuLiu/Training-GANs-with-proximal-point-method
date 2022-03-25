@@ -64,4 +64,4 @@ def save_checkpoint(states, is_best, output_dir, epoch,
                     filename='checkpoint.pth'):
     torch.save(states, os.path.join(output_dir, filename))
     if is_best:
-        torch.save(states, os.path.join(output_dir, '_{0}_checkpoint_best.pth'.format(epoch)))
+        torch.save(states, os.path.join(output_dir, 'checkpoint_best.pth'))

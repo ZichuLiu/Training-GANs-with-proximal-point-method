@@ -314,6 +314,11 @@ def main(args, valid_only=False):
                 is_best = False
             logger.info(
                 '=> inception score: {0}, best inception score at epoch {1}: {2}'.format(fid, best_ind, best_fid))
+        return
+
+    if os.path.exists(os.path.join(args.path_helper['ckpt_path'], 'complete')):
+        print("training completed")
+        return
 
     # train loop
     for epoch in tqdm(range(int(start_epoch), int(args.max_epoch)), desc='total progress'):
@@ -372,6 +377,8 @@ def main(args, valid_only=False):
             'path_helper': args.path_helper
         }, False, args.path_helper['ckpt_path'], epoch=epoch)
 
+    save_checkpoint({}, False, args.path_helper['ckpt_path'], 0, filename='complete')
+    print("training completed")
 
 
 # Press the green button in the gutter to run the script.
