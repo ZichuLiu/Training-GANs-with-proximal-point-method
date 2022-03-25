@@ -23,7 +23,7 @@ for j in {0..4}
 do
   for k in {0..5}
     do
-          let task_id=$k+3*$j
+          let task_id=$k+6*$j
           if [ "$task_id" -eq "$SLURM_ARRAY_TASK_ID" ]
           then
             echo $task_id
