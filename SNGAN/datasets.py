@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 
 
 class ImageDataset(object):
-    def __init__(self, args):
+    def __init__(self, args, **kwargs):
         if args.dataset.lower() == 'cifar10':
             Dt = datasets.CIFAR10
             transform = transforms.Compose([
@@ -28,23 +28,23 @@ class ImageDataset(object):
             self.train = torch.utils.data.DataLoader(
                 Dt(root=args.data_path, split='train+unlabeled', transform=transform, download=True),
                 batch_size=args.dis_batch_size, shuffle=True,
-                num_workers=args.num_workers, pin_memory=True)
+                num_workers=args.num_workers, pin_memory=True, **kwargs)
 
             self.valid = torch.utils.data.DataLoader(
                 Dt(root=args.data_path, split='test', transform=transform),
                 batch_size=args.dis_batch_size, shuffle=False,
-                num_workers=args.num_workers, pin_memory=True)
+                num_workers=args.num_workers, pin_memory=True, **kwargs)
 
             self.test = self.valid
         else:
             self.train = torch.utils.data.DataLoader(
                 Dt(root=args.data_path, train=True, transform=transform, download=True),
                 batch_size=args.dis_batch_size, shuffle=True,
-                num_workers=args.num_workers, pin_memory=True)
+                num_workers=args.num_workers, pin_memory=True, **kwargs)
 
             self.valid = torch.utils.data.DataLoader(
                 Dt(root=args.data_path, train=False, transform=transform),
                 batch_size=args.dis_batch_size, shuffle=False,
-                num_workers=args.num_workers, pin_memory=True)
+                num_workers=args.num_workers, pin_memory=True, **kwargs)
 
             self.test = self.valid

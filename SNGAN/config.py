@@ -173,6 +173,6 @@ def parse_args():
         default=4,
         help="the base resolution of the GAN")
     parser.add_argument('--random_seed', type=int, default=666666)
-
+    parser.add_argument("--valid_only", default=False, action='store_true')
     opt = parser.parse_args()
     return opt

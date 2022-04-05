@@ -191,6 +191,9 @@ def copy_params(model):
     flatten = deepcopy(list(p.data for p in model.parameters()))
     return flatten
 
+def seed_worker(worker_id):
+    worker_seed = torch.initial_seed() % 2 ** 32
+    np.random.seed(worker_seed)
 
 def main(args, valid_only=False):
     G = Generator(args).cuda()
@@ -229,8 +232,10 @@ def main(args, valid_only=False):
     best_fid = 1e4
     best_is = 0
 
+    g = torch.Generator()
+    g.manual_seed(args.random_seed)
     # set up data_loader
-    dataset = datasets.ImageDataset(args)
+    dataset = datasets.ImageDataset(args, generator=g, worker_init_fn=seed_worker)
     train_loader = dataset.train
 
     lr_schedulers = (gen_scheduler, dis_scheduler) if args.lr_decay else None
@@ -275,7 +280,7 @@ def main(args, valid_only=False):
     }
 
     if valid_only:
-        for epoch in range(2, 3):
+        for epoch in range(779, 780):
             print(f'=> resuming from {args.load_path}')
             checkpoint_file = os.path.join(args.load_path, '_' + str(epoch) + '_checkpoint_best.pth')
             # checkpoint_file = args.load_path
@@ -388,4 +393,6 @@ if __name__ == '__main__':
     np.random.seed(args.random_seed)
     torch.manual_seed(args.random_seed)
     torch.cuda.manual_seed_all(args.random_seed)
-    main(args, valid_only=False)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    main(args, valid_only=args.valid_only)
