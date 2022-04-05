@@ -10,6 +10,7 @@ from tensorboardX import SummaryWriter
 from SNGAN import datasets
 from tqdm import tqdm
 from functools import partialmethod
+
 if 'PREEMPT' in os.environ:
     tqdm.__init__ = partialmethod(tqdm.__init__, disable=True)
 from copy import deepcopy
@@ -88,6 +89,7 @@ class AdamPPM(torch.optim.Adam):
         defaults = dict(lr=lr, betas=betas, eps=eps,
                         weight_decay=weight_decay, amsgrad=amsgrad)
         super(torch.optim.Adam, self).__init__(params, defaults)
+
     # def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8,
     #              weight_decay=0, amsgrad=False):
     #     torch.optim.Adam.__init__(self, params, lr=lr, betas=betas, eps=eps,
@@ -145,17 +147,17 @@ class AdamPPM(torch.optim.Adam):
                     state_steps.append(state['step'])
 
             adam_no_update(params_with_grad,
-                             grads,
-                             exp_avgs,
-                             exp_avg_sqs,
-                             max_exp_avg_sqs,
-                             state_steps,
-                             amsgrad=group['amsgrad'],
-                             beta1=beta1,
-                             beta2=beta2,
-                             lr=group['lr'],
-                             weight_decay=group['weight_decay'],
-                             eps=group['eps'])
+                           grads,
+                           exp_avgs,
+                           exp_avg_sqs,
+                           max_exp_avg_sqs,
+                           state_steps,
+                           amsgrad=group['amsgrad'],
+                           beta1=beta1,
+                           beta2=beta2,
+                           lr=group['lr'],
+                           weight_decay=group['weight_decay'],
+                           eps=group['eps'])
         return loss
 
 
@@ -245,7 +247,7 @@ def main(args, valid_only=False):
     if args.load_path:
         print(f'=> resuming from {args.load_path}')
 
-        checkpoint_file = os.path.join('logs', args.load_path, 'Model', 'checkpoint.pth')
+        checkpoint_file = os.path.join('logs', args.load_path, 'Model', '_609_checkpoint_best.pth')
         if os.path.exists(checkpoint_file):
             checkpoint = torch.load(checkpoint_file)
             start_epoch = checkpoint['epoch']
@@ -280,9 +282,10 @@ def main(args, valid_only=False):
     }
 
     if valid_only:
-        for epoch in range(779, 780):
+        for epoch in range(610, 611):
             print(f'=> resuming from {args.load_path}')
-            checkpoint_file = os.path.join(args.load_path, '_' + str(epoch) + '_checkpoint_best.pth')
+            # checkpoint_file = os.path.join(args.load_path, 'Model', '_' + str(epoch) + '_checkpoint_best.pth')
+            checkpoint_file = os.path.join(args.load_path, '_624_checkpoint_best.pth')
             # checkpoint_file = args.load_path
             assert os.path.exists(checkpoint_file)
 
@@ -330,6 +333,9 @@ def main(args, valid_only=False):
         if args.alg == 'ha':
             train_ha(args, G, D, G_optimizer, D_optimizer, gen_avg_param, train_loader, epoch, writer_dict,
                      lr_schedulers)
+        elif args.alg == 'sppm':
+            train_sppm(args, G, D, G_optimizer, D_optimizer, gen_avg_param, train_loader, epoch, writer_dict,
+                       lr_schedulers)
         elif args.alg == 'ppm':
             train_ppm(args, G, D, G_optimizer, D_optimizer, gen_avg_param, train_loader, epoch, writer_dict,
                       lr_schedulers)
@@ -338,7 +344,8 @@ def main(args, valid_only=False):
                   lr_schedulers)
 
         # if epoch % args.val_freq == 0 or epoch == int(args.max_epoch) - 1:
-        if epoch > 350 or epoch % args.val_freq == 0:
+
+        if epoch and epoch % args.val_freq == 0 or epoch == int(args.max_epoch) - 1:
             backup_param = copy_params(G)
             load_params(G, gen_avg_param)
             avg_gen_net = deepcopy(G)
@@ -385,7 +392,6 @@ def main(args, valid_only=False):
     save_checkpoint({}, False, args.path_helper['ckpt_path'], 0, filename='complete')
     print("training completed")
 
-
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     args = config.parse_args()
@@ -396,3 +402,4 @@ if __name__ == '__main__':
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
     main(args, valid_only=args.valid_only)
+

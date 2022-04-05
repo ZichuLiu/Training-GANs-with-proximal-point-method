@@ -11,8 +11,9 @@ from SNGAN.inception_score import get_inception_score
 from SNGAN.fid_score_pytorch import calculate_fid
 from SNGAN.torch_fid_score import calculate_fid_given_paths_torch
 from pathlib import Path
-
 logger = logging.getLogger(__name__)
+
+
 
 
 def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optimizer, gen_avg_param, train_loader,
@@ -92,158 +93,6 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
         writer_dict['train_global_steps'] = global_steps + 1
 
 
-def train_sppm(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optimizer, gen_avg_param, train_loader,
-               epoch, writer_dict, schedulers=None):
-    writer = writer_dict['writer']
-    gen_step = 0
-    criterion = nn.BCEWithLogitsLoss()
-    # train mode
-    gen_net = gen_net.train()
-    dis_net = dis_net.train()
-
-    for iter_idx, (imgs, _) in enumerate(tqdm(train_loader)):
-        global_steps = writer_dict['train_global_steps']
-
-        # Adversarial ground truths
-        real_imgs = imgs.type(torch.cuda.FloatTensor)
-        # Sample noise as generator input
-        z = torch.cuda.FloatTensor(np.random.normal(0, 1, (imgs.shape[0], args.latent_dim)))
-
-        # ---------------------
-        #  Train Discriminator
-        # ---------------------
-        # dis_optimizer.zero_grad()
-        # gen_optimizer.zero_grad()
-
-        real_validity = dis_net(real_imgs)
-        fake_imgs = gen_net(z)
-
-        ones = torch.autograd.Variable(torch.ones(real_imgs.size()[0])).cuda()
-        zeros = torch.autograd.Variable(torch.zeros(fake_imgs.size()[0])).cuda()
-        ones_g = torch.autograd.Variable(torch.ones(fake_imgs.size()[0])).cuda()
-        assert fake_imgs.size() == real_imgs.size()
-
-        fake_validity = dis_net(fake_imgs)
-
-        # cal loss
-        d_loss = torch.mean(nn.ReLU(inplace=True)(1.0 - real_validity)) + \
-                 torch.mean(nn.ReLU(inplace=True)(1 + fake_validity))
-        g_loss = -torch.mean(fake_validity)
-        # d_loss = criterion(real_validity.squeeze(), ones) + criterion(fake_validity.squeeze(), zeros)
-        # g_loss = criterion(fake_validity.squeeze(), ones_g)
-
-        grad_g_0 = torch.autograd.grad(g_loss, gen_net.parameters(), create_graph=True, retain_graph=True)
-        grad_d_0 = torch.autograd.grad(d_loss, dis_net.parameters(), create_graph=True, retain_graph=True)
-
-        g_init = [p.data for i, p in enumerate(gen_net.parameters())]
-        d_init = [p.data for i, p in enumerate(dis_net.parameters())]
-
-        for i, p in enumerate(gen_net.parameters()):
-            p.grad = grad_g_0[i]
-        for i, p in enumerate(dis_net.parameters()):
-            p.grad = grad_d_0[i]
-        gen_optimizer.step_no_update()
-        dis_optimizer.step_no_update()
-
-        gi = [p.data for i, p in enumerate(gen_net.parameters())]
-        di = [p.data for i, p in enumerate(dis_net.parameters())]
-        for i, p in enumerate(gen_net.parameters()):
-            p.data = g_init[i].data
-        for i, p in enumerate(dis_net.parameters()):
-            p.data = d_init[i].data
-
-        for iter in range(args.extra_steps - 1):
-            for i, p in enumerate(dis_net.parameters()):
-                p.data = di[i].data
-            g_loss = -torch.mean(dis_net(fake_imgs))
-            # g_loss = criterion(dis_net(fake_imgs).squeeze(),ones_g)
-            grad_g = torch.autograd.grad(g_loss, gen_net.parameters(), create_graph=True, retain_graph=True)
-            for i, p in enumerate(dis_net.parameters()):
-                p.data = d_init[i].data
-
-            for i, p in enumerate(gen_net.parameters()):
-                p.data = gi[i].data
-            fake_new = gen_net(z)
-            d_loss = torch.mean(nn.ReLU(inplace=True)(1.0 - real_validity)) + \
-                     torch.mean(nn.ReLU(inplace=True)(1 + dis_net(fake_new)))
-            # d_loss = criterion(real_validity.squeeze(), ones) + criterion(dis_net(fake_new).squeeze(), zeros)
-            grad_d = torch.autograd.grad(d_loss, dis_net.parameters(), create_graph=True, retain_graph=True)
-            for i, p in enumerate(gen_net.parameters()):
-                p.data = g_init[i].data
-
-            for i, p in enumerate(gen_net.parameters()):
-                p.grad = grad_g[i]
-            for i, p in enumerate(dis_net.parameters()):
-                p.grad = grad_d[i]
-            gen_optimizer.step_no_update()
-            dis_optimizer.step_no_update()
-
-            gi = [p.data for i, p in enumerate(gen_net.parameters())]
-            di = [p.data for i, p in enumerate(dis_net.parameters())]
-            for i, p in enumerate(gen_net.parameters()):
-                p.data = g_init[i].data
-            for i, p in enumerate(dis_net.parameters()):
-                p.data = d_init[i].data
-
-        # # compute xi = x_init + lr * df(x_init, yi)
-        for i, p in enumerate(dis_net.parameters()):
-            p.data = di[i].data
-        g_loss = -torch.mean(dis_net(fake_imgs))
-        # g_loss = criterion(dis_net(fake_imgs).squeeze(), ones_g)
-        grad_g = torch.autograd.grad(g_loss, gen_net.parameters(), create_graph=True, retain_graph=True)
-        for i, p in enumerate(dis_net.parameters()):
-            p.data = d_init[i].data
-
-        for i, p in enumerate(gen_net.parameters()):
-            p.data = gi[i].data
-        fake_new = gen_net(z)
-        d_loss = torch.mean(nn.ReLU(inplace=True)(1.0 - real_validity)) + \
-                 torch.mean(nn.ReLU(inplace=True)(1 + dis_net(fake_new)))
-        # d_loss = criterion(real_validity.squeeze(), ones) + criterion(dis_net(fake_new).squeeze(), zeros)
-        grad_d = torch.autograd.grad(d_loss, dis_net.parameters(), create_graph=True, retain_graph=True)
-        for i, p in enumerate(gen_net.parameters()):
-            p.data = g_init[i].data
-
-        for i, p in enumerate(gen_net.parameters()):
-            p.grad = grad_g[i]
-        for i, p in enumerate(dis_net.parameters()):
-            p.grad = grad_d[i]
-
-        gen_optimizer.step()
-        dis_optimizer.step()
-        # adjust learning rate
-        if schedulers:
-            gen_scheduler, dis_scheduler = schedulers
-            g_lr = gen_scheduler.step(global_steps)
-            d_lr = dis_scheduler.step(global_steps)
-            if global_steps % 20 == 0:
-                writer.add_scalar('LR/g_lr', g_lr, global_steps)
-                writer.add_scalar('LR/d_lr', d_lr, global_steps)
-
-        # moving average weight
-        for p, avg_p in zip(gen_net.parameters(), gen_avg_param):
-            avg_p.mul_(args.ema).add_((1 - args.ema), p.data)
-
-        if global_steps % 20 == 0:
-            writer.add_scalar('g_loss', g_loss.item(), global_steps)
-        gen_step += 1
-
-        # verbose
-        if gen_step and iter_idx % args.print_freq == 0:
-            if 'PREEMPT' in os.environ:
-                print("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" %
-                      (
-                          epoch, args.max_epoch, iter_idx % len(train_loader), len(train_loader), d_loss.item(),
-                          g_loss.item()))
-            else:
-                tqdm.write(
-                    "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" %
-                    (epoch, args.max_epoch, iter_idx % len(train_loader), len(train_loader), d_loss.item(),
-                     g_loss.item()))
-
-        writer_dict['train_global_steps'] = global_steps + 1
-
-
 def train_ppm(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optimizer, gen_avg_param, train_loader,
               epoch, writer_dict, schedulers=None):
     writer = writer_dict['writer']
@@ -252,6 +101,7 @@ def train_ppm(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_o
     # train mode
     gen_net = gen_net.train()
     dis_net = dis_net.train()
+
 
     for iter_idx, (imgs, _) in enumerate(tqdm(train_loader)):
         global_steps = writer_dict['train_global_steps']
@@ -346,7 +196,7 @@ def train_ppm(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_o
 
         # moving average weight
         for p, avg_p in zip(gen_net.parameters(), gen_avg_param):
-            avg_p.mul_(args.ema).add_((1 - args.ema), p.data)
+            avg_p.mul_(args.ema).add_((1-args.ema), p.data)
 
         if global_steps % 20 == 0:
             writer.add_scalar('g_loss', g_loss.item(), global_steps)
@@ -357,13 +207,11 @@ def train_ppm(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_o
             if 'PREEMPT' in os.environ:
                 print("[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" %
                       (
-                          epoch, args.max_epoch, iter_idx % len(train_loader), len(train_loader), d_loss.item(),
-                          g_loss.item()))
+                      epoch, args.max_epoch, iter_idx % len(train_loader), len(train_loader), d_loss.item(), g_loss.item()))
             else:
                 tqdm.write(
                     "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]" %
-                    (epoch, args.max_epoch, iter_idx % len(train_loader), len(train_loader), d_loss.item(),
-                     g_loss.item()))
+                    (epoch, args.max_epoch, iter_idx % len(train_loader), len(train_loader), d_loss.item(), g_loss.item()))
 
         writer_dict['train_global_steps'] = global_steps + 1
 
@@ -556,35 +404,33 @@ def validate_fid(args, fixed_z, gen_net: nn.Module, writer_dict, train_loader, e
     writer_dict['valid_global_steps'] = global_steps + 1
     return inception_score, fid
 
-
 def get_fid(args, fid_stat, epoch, gen_net, num_img, gen_batch_size, val_batch_size, writer_dict=None, cls_idx=None):
     gen_net.eval()
     with torch.no_grad():
         # eval mode
         gen_net.eval()
 
-        #         eval_iter = num_img // gen_batch_size
-        #         img_list = []
-        #         for _ in tqdm(range(eval_iter), desc='sample images'):
-        #             z = torch.cuda.FloatTensor(np.random.normal(0, 1, (gen_batch_size, args.latent_dim)))
+#         eval_iter = num_img // gen_batch_size
+#         img_list = []
+#         for _ in tqdm(range(eval_iter), desc='sample images'):
+#             z = torch.cuda.FloatTensor(np.random.normal(0, 1, (gen_batch_size, args.latent_dim)))
 
-        #             # Generate a batch of images
-        #             if args.n_classes > 0:
-        #                 if cls_idx is not None:
-        #                     label = torch.ones(z.shape[0]) * cls_idx
-        #                     label = label.type(torch.cuda.LongTensor)
-        #                 else:
-        #                     label = torch.randint(low=0, high=args.n_classes, size=(z.shape[0],), device='cuda')
-        #                 gen_imgs = gen_net(z, epoch)
-        #             else:
-        #                 gen_imgs = gen_net(z, epoch)
-        #             if isinstance(gen_imgs, tuple):
-        #                 gen_imgs = gen_imgs[0]
-        #             img_list += [gen_imgs]
+#             # Generate a batch of images
+#             if args.n_classes > 0:
+#                 if cls_idx is not None:
+#                     label = torch.ones(z.shape[0]) * cls_idx
+#                     label = label.type(torch.cuda.LongTensor)
+#                 else:
+#                     label = torch.randint(low=0, high=args.n_classes, size=(z.shape[0],), device='cuda')
+#                 gen_imgs = gen_net(z, epoch)
+#             else:
+#                 gen_imgs = gen_net(z, epoch)
+#             if isinstance(gen_imgs, tuple):
+#                 gen_imgs = gen_imgs[0]
+#             img_list += [gen_imgs]
 
-        #         img_list = torch.cat(img_list, 0)
-        fid_score = calculate_fid_given_paths_torch(args, gen_net, fid_stat, gen_batch_size=gen_batch_size,
-                                                    batch_size=val_batch_size)
+#         img_list = torch.cat(img_list, 0)
+        fid_score = calculate_fid_given_paths_torch(args, gen_net, fid_stat, gen_batch_size=gen_batch_size, batch_size=val_batch_size)
 
     if writer_dict:
         writer = writer_dict['writer']

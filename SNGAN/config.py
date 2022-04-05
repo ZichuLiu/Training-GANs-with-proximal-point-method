@@ -15,12 +15,12 @@ def parse_args():
     parser.add_argument(
         '--max_epoch',
         type=int,
-        default=500,
+        default=900,
         help='number of epochs of training')
     parser.add_argument(
         '--extra_steps',
         type=int,
-        default=4,
+        default=6,
         help='number of extrapolations')
     parser.add_argument(
         '--max_iter',
@@ -56,7 +56,7 @@ def parse_args():
     parser.add_argument(
         '--beta1',
         type=float,
-        default= -0.1,
+        default=-0.0,
         help='adam: decay of first order momentum of gradient')
     parser.add_argument(
         '--beta2',
@@ -66,7 +66,7 @@ def parse_args():
     parser.add_argument(
         '--ema',
         type=float,
-        default=0.8,
+        default=0.9999,
         help='exponential moving average weights')
     parser.add_argument(
         '--num_workers',
@@ -120,7 +120,9 @@ def parse_args():
         help='interval between each verbose')
     parser.add_argument(
         '--load_path',
-        default='/home/zichu/PycharmProjects/best_gan/logs/cifar10_adam_2022_03_17_18_53_37/Model/',
+        # default='/home/zichu/PycharmProjects/best_gan/logs/cifar10_adam_2022_03_18_10_30_35',
+        default='/home/zichu',
+        # default='/home/zichu/PycharmProjects/Least_action_dynamics_minmax-main/ResNet/best_slead',
         type=str,
         help='The reload model path')
     parser.add_argument(
