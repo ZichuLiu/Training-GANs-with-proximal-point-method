@@ -285,7 +285,7 @@ def main(args, valid_only=False):
         for epoch in range(610, 611):
             print(f'=> resuming from {args.load_path}')
             # checkpoint_file = os.path.join(args.load_path, 'Model', '_' + str(epoch) + '_checkpoint_best.pth')
-            checkpoint_file = os.path.join(args.load_path, '_624_checkpoint_best.pth')
+            checkpoint_file = os.path.join(args.load_path, 'checkpoint.pth')
             # checkpoint_file = args.load_path
             assert os.path.exists(checkpoint_file)
 
